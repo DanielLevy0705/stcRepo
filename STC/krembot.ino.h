@@ -56,6 +56,7 @@ public:
     void init_matrix_neighbor(int width_size,int height_size);
     std::list<Cell*> *get_neighbor_direction(Cell* current_cell, std::list<Cell*> *available_neighbors);
     std::list<Cell*>* get_unvisited_neighbors(Cell* current_cell,std::list<Cell*>*available_neighbors ,int **visitedRobotGrid);
+    std::list<Cell*>* get_converted_cells(Cell* current_cell, std::list<Cell*>*available_neighbors);
     CVector2 mapResolutionToStc(int xPos, int yPos);
     int mapIndex2Dto1D(int xPos, int yPos);
     bool checkUpDirection(Cell _cell, int **grid, int given_height);

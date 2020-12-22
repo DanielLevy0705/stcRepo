@@ -65,6 +65,7 @@ void STC_controller::setup() {
     std::list<Cell*> *adj = cell_medium.getAdjacencyList();
     std::list<Cell*> *list = get_neighbor_direction(&cell_medium,adj);
     list = get_unvisited_neighbors(&cell_medium,list,visitedRobotGrid);
+    list = get_converted_cells(&cell_medium,list);
     //save_dm("/home/eliran/krembot_ws/STC/dm.txt",width,height,resolution);
     save_grid_to_file("/home/eliran/krembot_ws/STC/new_grid.txt",arr,height/ROBOT_SIZE, width/ROBOT_SIZE);
     save_grid_to_file("/home/eliran/krembot_ws/STC/walking_grid.txt",final_grid,height/ROBOT_SIZE/2, width/ROBOT_SIZE/2);
@@ -375,22 +376,22 @@ std::list<Cell*> *STC_controller::get_neighbor_direction(Cell *current_cell, std
         dir.leftDir = neighbor->getYPos() < current_cell->getYPos();
         dir.rightDir = neighbor->getYPos() > current_cell->getYPos();
         dir.downDir = neighbor->getXPos() < current_cell->getXPos();
-        CVector2 pos = mapResolutionToStc(neighbor->getXPos(),neighbor->getYPos());
+        CVector2 neighbor_pos = mapResolutionToStc(neighbor->getXPos(),neighbor->getYPos());
         // Check if there is a neighbor in the direction we are moving to OR in the same cell (STC)
         if(dir.upDir && (neighbor_matrix[current_pos_x][current_pos_y].upDir
-        || pos.GetX() == current_pos_x)){
+        || neighbor_pos.GetX() == current_pos_x)){
             list->push_back(neighbor);
         }
         else if(dir.rightDir && (neighbor_matrix[current_pos_x][current_pos_y].rightDir
-        || pos.GetY() == current_pos_y)){
+        || neighbor_pos.GetY() == current_pos_y)){
             list->push_back(neighbor);
         }
         else if(dir.downDir && (neighbor_matrix[current_pos_x][current_pos_y].downDir
-        || pos.GetX() == current_pos_x)){
+        || neighbor_pos.GetX() == current_pos_x)){
             list->push_back(neighbor);
         }
         else if(dir.leftDir && (neighbor_matrix[current_pos_x][current_pos_y].leftDir
-        || pos.GetY() == current_pos_y)){
+        || neighbor_pos.GetY() == current_pos_y)){
             list->push_back(neighbor);
         }
 
@@ -401,15 +402,63 @@ std::list<Cell*> *STC_controller::get_neighbor_direction(Cell *current_cell, std
 std::list<Cell *> *STC_controller::get_unvisited_neighbors(Cell *current_cell, std::list<Cell *> *available_neighbors,
                                                            int **visitedRobotGrid) {
     std::list<Cell*> *list = new std::list<Cell*>;
-    CVector2 current_pos = mapResolutionToStc(current_cell->getXPos(),current_cell->getYPos());
-    int current_pos_x = current_pos.GetX();
-    int current_pos_y = current_pos.GetY();
     for (auto &neighbor : *available_neighbors) {
         if (!visitedRobotGrid[neighbor->getXPos()][neighbor->getYPos()])
             list->push_back(neighbor);
     }
     return list;
 }
+
+std::list<Cell *> *STC_controller::get_converted_cells(Cell *current_cell, std::list<Cell *> *available_neighbors) {
+    std::list<Cell*> *list = new std::list<Cell*>;
+    CVector2 current_pos = mapResolutionToStc(current_cell->getXPos(),current_cell->getYPos());
+    int current_pos_x = current_pos.GetX();
+    int current_pos_y = current_pos.GetY();
+    int current_x_in_cell = current_cell->getXPos() %2;
+    int current_y_in_cell = current_cell->getYPos() %2;
+    for (auto &neighbor : *available_neighbors){
+        CVector2 neighbor_pos = mapResolutionToStc(neighbor->getXPos(),neighbor->getYPos());
+        int neighbor_x_in_cell = neighbor->getXPos() % 2;
+        int neighbor_y_in_cell = neighbor->getYPos() %2;
+        if (neighbor_pos.GetX() == current_pos_x && neighbor_pos.GetY() == current_pos_y){
+            if (neighbor_matrix[current_pos_x][current_pos_y].upDir){
+                if (current_x_in_cell == 1 && neighbor_x_in_cell == 1) {
+                    if ((current_y_in_cell == 0 && neighbor_y_in_cell == 1)
+                    || (current_y_in_cell == 1 && neighbor_y_in_cell == 0)) {
+                        continue;
+                    }
+                }
+            }
+            if (neighbor_matrix[current_pos_x][current_pos_y].rightDir){
+                if (current_y_in_cell == 1 && neighbor_y_in_cell == 1) {
+                    if ((current_x_in_cell == 0 && neighbor_x_in_cell == 1)
+                        || (current_x_in_cell == 1 && neighbor_x_in_cell == 0)) {
+                        continue;
+                    }
+                }
+            }
+            if (neighbor_matrix[current_pos_x][current_pos_y].downDir){
+                if (current_x_in_cell == 0 && neighbor_x_in_cell == 0) {
+                    if ((current_y_in_cell == 0 && neighbor_y_in_cell == 1)
+                        || (current_y_in_cell == 1 && neighbor_y_in_cell == 0)) {
+                        continue;
+                    }
+                }
+            }
+            if (neighbor_matrix[current_pos_x][current_pos_y].leftDir){
+                if (current_y_in_cell == 0 && neighbor_y_in_cell == 0) {
+                    if ((current_x_in_cell == 0 && neighbor_x_in_cell == 1)
+                        || (current_x_in_cell == 1 && neighbor_x_in_cell == 0)) {
+                        continue;
+                    }
+                }
+            }
+        }
+        list->push_back(neighbor);
+    }
+    return list;
+}
+
 
 CVector2 STC_controller::mapResolutionToStc(int xPos, int yPos) {
     return CVector2(xPos/2,yPos/2);
@@ -430,6 +479,7 @@ int **STC_controller::initVisitedRobotGrid(int _width, int _height) {
     }
     return visitedRobotGrid;
 }
+
 
 
 
