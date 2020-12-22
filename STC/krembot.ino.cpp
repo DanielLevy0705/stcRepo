@@ -55,6 +55,7 @@ void STC_controller::setup() {
     dfs_width = width/ROBOT_SIZE/2;
     dfs_height = width/ROBOT_SIZE/2;
     bool visited[dfs_width*dfs_height];
+    int ** visitedRobotGrid = initVisitedRobotGrid(width,height);
     DFS(cell,visited);
     int xOrig = pos_medium_grid.GetX();
     int yOrig = pos_medium_grid.GetY();
@@ -281,7 +282,6 @@ int **STC_controller::create_grid(int **grid, int _height, int _width) {
     for (int i = 0; i < new_width; i++) {
         resolution_grid[i] = new int[new_height];
     }
-
     //Fill all with zeros
     for (int row = new_height - 1; row >= 0; row--) {
         for (int col = 0; col < new_width; col++) {
@@ -365,19 +365,32 @@ void STC_controller::DFS(Cell &root,bool visited[]) {
 std::list<Cell*> *STC_controller::get_neighbor_direction(Cell *current_cell, std::list<Cell *> *available_neihbors) {
     std::list<Cell*> *list = new std::list<Cell*>;
     CVector2 current_pos = mapResolutionToStc(current_cell->getXPos(),current_cell->getYPos());
+    int current_pos_x = current_pos.GetX();
+    int current_pos_y = current_pos.GetY();
     for (auto &neighbor : *available_neihbors){
         Directions dir;
+        // What direction i have moved in the 25X25 Grid
         dir.upDir = neighbor->getXPos() > current_cell->getXPos();
         dir.leftDir = neighbor->getYPos() < current_cell->getYPos();
         dir.rightDir = neighbor->getYPos() > current_cell->getYPos();
         dir.downDir = neighbor->getXPos() < current_cell->getXPos();
         CVector2 pos = mapResolutionToStc(neighbor->getXPos(),neighbor->getYPos());
-        if(dir.upDir){}
-        if(dir.leftDir){}
-        if(dir.rightDir){}
-        if(dir.downDir){}
-        if(pos.GetX() > current_pos.GetX() && neighbor_matrix[current_cell->getXPos()][current_cell->getYPos()].upDir){
-
+        // Check if there is a neighbor in the direction we are moving to OR in the same cell (STC)
+        if(dir.upDir && (neighbor_matrix[current_pos_x][current_pos_y].upDir
+        || pos.GetX() == current_pos_x)){
+            list->push_back(neighbor);
+        }
+        else if(dir.rightDir && (neighbor_matrix[current_pos_x][current_pos_y].rightDir
+        || pos.GetY() == current_pos_y)){
+            list->push_back(neighbor);
+        }
+        else if(dir.downDir && (neighbor_matrix[current_pos_x][current_pos_y].downDir
+        || pos.GetX() == current_pos_x)){
+            list->push_back(neighbor);
+        }
+        else if(dir.leftDir && (neighbor_matrix[current_pos_x][current_pos_y].leftDir
+        || pos.GetY() == current_pos_y)){
+            list->push_back(neighbor);
         }
 
     }
@@ -387,5 +400,23 @@ std::list<Cell*> *STC_controller::get_neighbor_direction(Cell *current_cell, std
 CVector2 STC_controller::mapResolutionToStc(int xPos, int yPos) {
     return CVector2(xPos/2,yPos/2);
 }
+
+int **STC_controller::initVisitedRobotGrid(int _width, int _height) {
+    int new_width = _width /ROBOT_SIZE;
+    int new_height = _height /ROBOT_SIZE;
+    //Init the new grids by the calculated size
+    int **visitedRobotGrid = new int *[new_width];
+    for (int i = 0; i < new_width; i++) {
+        visitedRobotGrid[i] = new int[new_height];
+    }
+    for (int row = new_height - 1; row >= 0; row--) {
+        for (int col = 0; col < new_width; col++) {
+            visitedRobotGrid[row][col] = 0;
+        }
+    }
+    return visitedRobotGrid;
+}
+
+
 
 

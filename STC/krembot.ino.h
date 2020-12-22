@@ -67,7 +67,7 @@ public:
     int **create_grid(int **grid, int _height, int _width);
     int **create_resolution_grid(int **grid, int _height, int _width);
     void DFS(Cell &root, bool visited[]);
-
+    int ** initVisitedRobotGrid(int _width, int _height);
     void Init(TConfigurationNode &t_node) override {
         KrembotController::Init(t_node);
         if ( ! krembot.isInitialized() ) {
