@@ -14,6 +14,11 @@ struct PosMsg{
     CVector2 pos;
     CDegrees degreeX;
 };
+
+struct Directions {
+    bool upDir = false, rightDir=false,downDir=false,leftDir=false;
+};
+
 class Cell{
     int xPos;
     int yPos;
@@ -24,8 +29,6 @@ public:
     int getYPos() const;
     std::list<Cell*>* getAdjacencyList();
     void addNeighbor(Cell *cell);
-
-
 };
 
 class STC_controller : public KrembotController {
@@ -50,13 +53,15 @@ public:
     void save_grid_to_file(std::string name, int** grid, int _height, int _width);
     void save_grid_to_file_with_robot_location(std::string name, int** grid, int _height, int _width,
                                                int robot_col, int robot_row);
+    void init_matrix_neighbor(int width_size,int height_size);
+    std::list<Cell*> *get_neighbor_direction(Cell* current_cell, std::list<Cell*> *available_neihbors);
+    CVector2 mapResolutionToStc(int xPos, int yPos);
     int mapIndex2Dto1D(int xPos, int yPos);
-
-    bool checkUpDirection(Cell _cell);
-    bool checkRightDirection(Cell _cell);
-    bool checkDownDirection(Cell _cell);
-    bool checkLeftDirection(Cell _cell);
-    void addAdjCells(Cell &cell, bool visited[]);
+    bool checkUpDirection(Cell _cell, int **grid, int given_height);
+    bool checkRightDirection(Cell _cell, int **grid, int given_width);
+    bool checkDownDirection(Cell _cell, int **grid);
+    bool checkLeftDirection(Cell _cell, int **grid);
+    void addAdjCells(Cell &cell, int **grid,int given_height, int given_width, bool isDfsRun);
     void pos_to_col_row(CVector2 pos, int * pCol, int *pRow);
     void save_dm(std::string name, int width,int height,int resolution);
     int **create_grid(int **grid, int _height, int _width);

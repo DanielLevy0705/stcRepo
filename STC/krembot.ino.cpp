@@ -7,11 +7,14 @@ int col, row;
 int ** occupancyGrid;
 int ** arr;
 int ** final_grid;
+Directions ** neighbor_matrix;
 Real resolution;
 CVector2 origin;
 int height, width;
 int dfs_width, dfs_height;
 CVector2 pos;
+CVector2 pos_medium_grid;
+int col_medium,row_medium;
 CDegrees degreeX;
 
 enum State {
@@ -24,7 +27,6 @@ enum State {
 void STC_controller::setup() {
     krembot.setup();
     krembot.Led.write(0,255,0);
-
     occupancyGrid = mapMsg.occupancyGrid;
     resolution = mapMsg.resolution;
     ROBOT_SIZE = (int)(robotSize/mapMsg.resolution);
@@ -34,13 +36,15 @@ void STC_controller::setup() {
 
     save_grid_to_file("/home/eliran/krembot_ws/STC/grid.txt",occupancyGrid,height,width);
     pos = posMsg.pos;
+    pos_medium_grid = posMsg.pos;
     degreeX = posMsg.degreeX;
     pos_to_col_row(pos, &col,&row);
+    pos_to_col_row(pos_medium_grid,&col_medium,&row_medium);
     save_grid_to_file_with_robot_location("/home/eliran/krembot_ws/STC/grid-with-robot.txt",occupancyGrid,
                                           height,width,col,row);
-
     arr = create_grid(occupancyGrid,height,width);
     final_grid = create_resolution_grid(arr,height/ROBOT_SIZE,width/ROBOT_SIZE);
+    init_matrix_neighbor(width/ROBOT_SIZE/2,height/ROBOT_SIZE/2);
     int xOrigin = pos.GetX();
     int yOrigin = pos.GetY();
     pos_to_row_col_robot_grid(pos,xOrigin,yOrigin);
@@ -52,6 +56,13 @@ void STC_controller::setup() {
     dfs_height = width/ROBOT_SIZE/2;
     bool visited[dfs_width*dfs_height];
     DFS(cell,visited);
+    int xOrig = pos_medium_grid.GetX();
+    int yOrig = pos_medium_grid.GetY();
+    pos_to_row_col_robot_grid(pos_medium_grid,xOrig,yOrig);
+    Cell cell_medium(xOrig,yOrig);
+    addAdjCells(cell_medium,arr,height/ROBOT_SIZE, width/ROBOT_SIZE,false);
+    std::list<Cell*> *adj = cell_medium.getAdjacencyList();
+    std::list<Cell*> *list = get_neighbor_direction(&cell_medium,adj);
     //save_dm("/home/eliran/krembot_ws/STC/dm.txt",width,height,resolution);
     save_grid_to_file("/home/eliran/krembot_ws/STC/new_grid.txt",arr,height/ROBOT_SIZE, width/ROBOT_SIZE);
     save_grid_to_file("/home/eliran/krembot_ws/STC/walking_grid.txt",final_grid,height/ROBOT_SIZE/2, width/ROBOT_SIZE/2);
@@ -86,66 +97,84 @@ void Cell::addNeighbor(Cell *cell) {
     adjacencyList.push_back(cell);
 }
 
+void STC_controller::init_matrix_neighbor(int width_size,int height_size){
+    neighbor_matrix = new Directions*[width_size];
+    for (int i =0; i< width_size; i++){
+        neighbor_matrix[i] = new Directions[height_size];
+    }
+}
 
 
-bool STC_controller::checkUpDirection(Cell _cell) {
+bool STC_controller::checkUpDirection(Cell _cell, int **grid, int given_height) {
     int xPos = _cell.getXPos();
     int yPos = _cell.getYPos();
-    int up = xPos - 1;
-    if (up < 0 || final_grid[up][yPos] == 1)
+    int up = xPos + 1;
+    if (up > (given_height - 1) || grid[up][yPos] == 1)
         return false;
     return true;
 }
 
-bool STC_controller::checkRightDirection(Cell _cell) {
+bool STC_controller::checkRightDirection(Cell _cell, int **grid, int given_width) {
     int xPos = _cell.getXPos();
     int yPos = _cell.getYPos();
     int right = yPos + 1;
-    if (right > (dfs_height - 1) || final_grid[xPos][right] == 1)
+    if (right > (given_width - 1) || grid[xPos][right] == 1)
         return false;
     return true;
 }
 
-bool STC_controller::checkDownDirection(Cell _cell) {
+bool STC_controller::checkDownDirection(Cell _cell, int **grid) {
     int yPos = _cell.getYPos();
     int xPos = _cell.getXPos();
-    int down = xPos + 1;
-    if (down > (dfs_width - 1) || final_grid[down][yPos] == 1)
+    int down = xPos - 1;
+    if (down < 0 || grid[down][yPos] == 1)
         return false;
     return true;
 }
 
-bool STC_controller::checkLeftDirection(Cell _cell) {
+bool STC_controller::checkLeftDirection(Cell _cell, int **grid) {
     int xPos = _cell.getXPos();
     int yPos = _cell.getYPos();
     int left = yPos - 1;
-    if (left < 0 || final_grid[xPos][left] == 1)
+    if (left < 0 || grid[xPos][left] == 1)
         return false;
     return true;
 }
 int STC_controller::mapIndex2Dto1D(int xPos, int yPos){
     return ((xPos) * dfs_width + yPos);
 }
-void STC_controller::addAdjCells(Cell &cell, bool visited[]) {
-    if (checkUpDirection(cell)  )
-    {
-        Cell *_cell = new Cell(cell.getXPos() - 1, cell.getYPos());
-        cell.addNeighbor(_cell);
-    }
-    if (checkRightDirection(cell) )
-    {
-        Cell *_cell = new Cell(cell.getXPos(), cell.getYPos() + 1);
-        cell.addNeighbor(_cell);
-    }
-    if (checkDownDirection(cell) )
+void STC_controller::addAdjCells(Cell &cell, int **grid,int given_height,int given_width, bool isDfsRun) {
+    if (checkUpDirection(cell,grid,given_height))
     {
         Cell *_cell = new Cell(cell.getXPos() + 1, cell.getYPos());
         cell.addNeighbor(_cell);
+        if(isDfsRun) {
+            neighbor_matrix[cell.getXPos()][cell.getYPos()].upDir = true;
+        }
     }
-    if (checkLeftDirection(cell))
+    if (checkRightDirection(cell,grid,given_width))
+    {
+        Cell *_cell = new Cell(cell.getXPos(), cell.getYPos() + 1);
+        cell.addNeighbor(_cell);
+        if (isDfsRun){
+            neighbor_matrix[cell.getXPos()][cell.getYPos()].rightDir = true;
+        }
+    }
+    if (checkDownDirection(cell,grid))
+    {
+        Cell *_cell = new Cell(cell.getXPos() - 1, cell.getYPos());
+        cell.addNeighbor(_cell);
+        if (isDfsRun){
+            neighbor_matrix[cell.getXPos()][cell.getYPos()].downDir = true;
+        }
+    }
+    if (checkLeftDirection(cell,grid))
     {
         Cell *_cell = new Cell(cell.getXPos(), cell.getYPos() - 1);
         cell.addNeighbor(_cell);
+        if (isDfsRun){
+            neighbor_matrix[cell.getXPos()][cell.getYPos()].leftDir = true;
+        }
     }
 }
 
@@ -245,11 +274,8 @@ void STC_controller::save_dm(std::string name,int width, int height, int resoulu
 
 
 int **STC_controller::create_grid(int **grid, int _height, int _width) {
-
-
     int new_width = _width /ROBOT_SIZE;
     int new_height = _height /ROBOT_SIZE;
-
     //Init the new grids by the calculated size
     int **resolution_grid = new int *[new_width];
     for (int i = 0; i < new_width; i++) {
@@ -283,20 +309,22 @@ int **STC_controller::create_grid(int **grid, int _height, int _width) {
 }
 
 int **STC_controller::create_resolution_grid(int **grid, int _height, int _width) {
-    int walking_width = _height / 2;
-    int walking_height = _width / 2;
+    int walking_width = _width / 2;
+    int walking_height = _height / 2;
     int row_pos =0, col_pos = 0;
     int **walking_grid = new int *[walking_width];
-    for (int i = 0; i < _height; i++) {
-        walking_grid[i] = new int[_width];
+    for (int i = 0; i < walking_width; i++) {
+        walking_grid[i] = new int[walking_height];
     }
     for (int row = walking_width - 1; row >= 0; row--) {
         for (int col = 0; col < walking_height; col++) {
             walking_grid[row][col] = 0;
         }
     }
-    for (int row = _height - 1; row >= 0; row--) {
-        for (int col = 0; col < _width; col++) {
+    int max_width = walking_width * 2;
+    int max_height = walking_height * 2;
+    for (int row = max_height-1; row >= 0; row--) {
+        for (int col = 0; col < max_width; col++) {
             if (grid[row][col] == 1) {
                 //Calculate which cell we need to put 1
                 row_pos = row / 2;
@@ -311,7 +339,6 @@ int **STC_controller::create_resolution_grid(int **grid, int _height, int _width
 }
 
 void STC_controller::DFS(Cell &root,bool visited[]) {
-    int counter = 0;
     for (int i =0; i<dfs_width*dfs_height; i++){
         visited[i] = false;
     }
@@ -319,11 +346,10 @@ void STC_controller::DFS(Cell &root,bool visited[]) {
     stack.push(&root);
     visited[root.getXPos()*dfs_width + root.getYPos()] = true;
     while (!stack.empty()) {
-        counter++;
         int index = 0;
         Cell *cell = stack.top();
         stack.pop();
-        addAdjCells(*cell,visited);
+        addAdjCells(*cell,final_grid,height/ROBOT_SIZE/2, width/ROBOT_SIZE/2,true);
         std::list<Cell*> *adjList = cell->getAdjacencyList();
         for (auto &neighbor : *adjList) {
             index = mapIndex2Dto1D(neighbor->getXPos(), neighbor->getYPos());
@@ -334,6 +360,32 @@ void STC_controller::DFS(Cell &root,bool visited[]) {
         }
     }
     int x = 5;
+}
+
+std::list<Cell*> *STC_controller::get_neighbor_direction(Cell *current_cell, std::list<Cell *> *available_neihbors) {
+    std::list<Cell*> *list = new std::list<Cell*>;
+    CVector2 current_pos = mapResolutionToStc(current_cell->getXPos(),current_cell->getYPos());
+    for (auto &neighbor : *available_neihbors){
+        Directions dir;
+        dir.upDir = neighbor->getXPos() > current_cell->getXPos();
+        dir.leftDir = neighbor->getYPos() < current_cell->getYPos();
+        dir.rightDir = neighbor->getYPos() > current_cell->getYPos();
+        dir.downDir = neighbor->getXPos() < current_cell->getXPos();
+        CVector2 pos = mapResolutionToStc(neighbor->getXPos(),neighbor->getYPos());
+        if(dir.upDir){}
+        if(dir.leftDir){}
+        if(dir.rightDir){}
+        if(dir.downDir){}
+        if(pos.GetX() > current_pos.GetX() && neighbor_matrix[current_cell->getXPos()][current_cell->getYPos()].upDir){
+
+        }
+
+    }
+    return list;
+}
+
+CVector2 STC_controller::mapResolutionToStc(int xPos, int yPos) {
+    return CVector2(xPos/2,yPos/2);
 }
 
 
