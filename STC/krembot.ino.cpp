@@ -64,6 +64,7 @@ void STC_controller::setup() {
     addAdjCells(cell_medium,arr,height/ROBOT_SIZE, width/ROBOT_SIZE,false);
     std::list<Cell*> *adj = cell_medium.getAdjacencyList();
     std::list<Cell*> *list = get_neighbor_direction(&cell_medium,adj);
+    list = get_unvisited_neighbors(&cell_medium,list,visitedRobotGrid);
     //save_dm("/home/eliran/krembot_ws/STC/dm.txt",width,height,resolution);
     save_grid_to_file("/home/eliran/krembot_ws/STC/new_grid.txt",arr,height/ROBOT_SIZE, width/ROBOT_SIZE);
     save_grid_to_file("/home/eliran/krembot_ws/STC/walking_grid.txt",final_grid,height/ROBOT_SIZE/2, width/ROBOT_SIZE/2);
@@ -362,12 +363,12 @@ void STC_controller::DFS(Cell &root,bool visited[]) {
     int x = 5;
 }
 
-std::list<Cell*> *STC_controller::get_neighbor_direction(Cell *current_cell, std::list<Cell *> *available_neihbors) {
+std::list<Cell*> *STC_controller::get_neighbor_direction(Cell *current_cell, std::list<Cell *> *available_neighbors) {
     std::list<Cell*> *list = new std::list<Cell*>;
     CVector2 current_pos = mapResolutionToStc(current_cell->getXPos(),current_cell->getYPos());
     int current_pos_x = current_pos.GetX();
     int current_pos_y = current_pos.GetY();
-    for (auto &neighbor : *available_neihbors){
+    for (auto &neighbor : *available_neighbors){
         Directions dir;
         // What direction i have moved in the 25X25 Grid
         dir.upDir = neighbor->getXPos() > current_cell->getXPos();
@@ -397,6 +398,19 @@ std::list<Cell*> *STC_controller::get_neighbor_direction(Cell *current_cell, std
     return list;
 }
 
+std::list<Cell *> *STC_controller::get_unvisited_neighbors(Cell *current_cell, std::list<Cell *> *available_neighbors,
+                                                           int **visitedRobotGrid) {
+    std::list<Cell*> *list = new std::list<Cell*>;
+    CVector2 current_pos = mapResolutionToStc(current_cell->getXPos(),current_cell->getYPos());
+    int current_pos_x = current_pos.GetX();
+    int current_pos_y = current_pos.GetY();
+    for (auto &neighbor : *available_neighbors) {
+        if (!visitedRobotGrid[neighbor->getXPos()][neighbor->getYPos()])
+            list->push_back(neighbor);
+    }
+    return list;
+}
+
 CVector2 STC_controller::mapResolutionToStc(int xPos, int yPos) {
     return CVector2(xPos/2,yPos/2);
 }
@@ -416,6 +430,8 @@ int **STC_controller::initVisitedRobotGrid(int _width, int _height) {
     }
     return visitedRobotGrid;
 }
+
+
 
 
 

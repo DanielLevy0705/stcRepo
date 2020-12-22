@@ -54,7 +54,8 @@ public:
     void save_grid_to_file_with_robot_location(std::string name, int** grid, int _height, int _width,
                                                int robot_col, int robot_row);
     void init_matrix_neighbor(int width_size,int height_size);
-    std::list<Cell*> *get_neighbor_direction(Cell* current_cell, std::list<Cell*> *available_neihbors);
+    std::list<Cell*> *get_neighbor_direction(Cell* current_cell, std::list<Cell*> *available_neighbors);
+    std::list<Cell*>* get_unvisited_neighbors(Cell* current_cell,std::list<Cell*>*available_neighbors ,int **visitedRobotGrid);
     CVector2 mapResolutionToStc(int xPos, int yPos);
     int mapIndex2Dto1D(int xPos, int yPos);
     bool checkUpDirection(Cell _cell, int **grid, int given_height);
