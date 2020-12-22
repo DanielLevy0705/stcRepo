@@ -1,0 +1,3 @@
+/home/eliran/robotics/STC/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+/home/eliran/robotics/STC/cmake-build-debug/CMakeFiles/edit_cache.dir
+/home/eliran/robotics/STC/cmake-build-debug/CMakeFiles/STC.dir
