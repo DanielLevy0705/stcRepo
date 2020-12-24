@@ -1,7 +1,7 @@
 #include <list>
 #include <stack>
 #include "krembot.ino.h"
-
+#include <string>
 
 int col, row;
 int ** occupancyGrid;
@@ -16,7 +16,8 @@ CVector2 pos;
 CVector2 pos_medium_grid;
 int col_medium,row_medium;
 CDegrees degreeX;
-
+Cell* root_medium;
+std::list<Cell*>* path;
 enum State {
     move,
     turn
@@ -55,27 +56,102 @@ void STC_controller::setup() {
     dfs_width = width/ROBOT_SIZE/2;
     dfs_height = width/ROBOT_SIZE/2;
     bool visited[dfs_width*dfs_height];
-    int ** visitedRobotGrid = initVisitedRobotGrid(width,height);
+    bool visitedRobotGrid[height/ROBOT_SIZE * width/ROBOT_SIZE];
+    initVisitedRobotGrid(visitedRobotGrid,width/ROBOT_SIZE,height/ROBOT_SIZE);
     DFS(cell,visited);
     int xOrig = pos_medium_grid.GetX();
     int yOrig = pos_medium_grid.GetY();
     pos_to_row_col_robot_grid(pos_medium_grid,xOrig,yOrig);
     Cell cell_medium(xOrig,yOrig);
-    addAdjCells(cell_medium,arr,height/ROBOT_SIZE, width/ROBOT_SIZE,false);
-    std::list<Cell*> *adj = cell_medium.getAdjacencyList();
-    std::list<Cell*> *list = get_neighbor_direction(&cell_medium,adj);
-    list = get_unvisited_neighbors(&cell_medium,list,visitedRobotGrid);
-    list = get_converted_cells(&cell_medium,list);
-    //save_dm("/home/eliran/krembot_ws/STC/dm.txt",width,height,resolution);
+    root_medium = new Cell(xOrig,yOrig);
+    path = pathBuilder(&cell_medium,visitedRobotGrid);
     save_grid_to_file("/home/eliran/krembot_ws/STC/new_grid.txt",arr,height/ROBOT_SIZE, width/ROBOT_SIZE);
     save_grid_to_file("/home/eliran/krembot_ws/STC/walking_grid.txt",final_grid,height/ROBOT_SIZE/2, width/ROBOT_SIZE/2);
 
+}
+
+std::list<Cell *> *STC_controller::pathBuilder(Cell *root,bool visitedRobotGrid[]) {
+    std::list<Cell*> *path = new std::list<Cell*>;
+    bool hasReachedStart = false;
+    addAdjCells(*root,arr,visitedRobotGrid,height/ROBOT_SIZE, width/ROBOT_SIZE,false);
+    visitedRobotGrid[root->getXPos()*(width/ROBOT_SIZE) + root->getYPos()] = true;
+    std::list<Cell*> *adj = root->getAdjacencyList();
+    std::list<Cell*> *list = get_neighbor_direction(root,adj);
+    list = get_unvisited_neighbors(root,list,visitedRobotGrid);
+    list = get_converted_cells(root,list);
+    Cell* front = list->front();
+    path->push_back(front);
+    while(!hasReachedStart){
+        addAdjCells(*front,arr,visitedRobotGrid,height/ROBOT_SIZE, width/ROBOT_SIZE,false);
+        visitedRobotGrid[front->getXPos()*(width/ROBOT_SIZE) + front->getYPos()] = true;
+        std::list<Cell*> *adj = front->getAdjacencyList();
+        std::list<Cell*> *list = get_neighbor_direction(front,adj);
+        list = get_unvisited_neighbors(front,list,visitedRobotGrid);
+        list = get_converted_cells(front,list);
+
+        front = list->front();
+        hasReachedStart = (front==nullptr);
+        if (hasReachedStart)
+            front = root;
+        path->push_back(front);
+    }
+    return path;
 }
 
 void STC_controller::loop() {
     krembot.loop();
     pos = posMsg.pos;
     degreeX = posMsg.degreeX;
+    Cell * next_cell = path->front();
+    CDegrees wantedDegree = calculateWantedDegree(root_medium,next_cell);
+    switch (state)
+    {
+        case State::move:
+        {
+
+            if (got_to_cell(next_cell->getYPos() * ROBOT_SIZE  + 5 , next_cell->getXPos() * ROBOT_SIZE  + 5))
+            {
+                krembot.Base.stop();
+                root_medium = next_cell;
+                path->pop_front();
+                state = State::turn;
+            }else
+            {
+                krembot.Base.drive(100, 0);
+                LOG << std::endl << "cell_X: " << root_medium->getXPos() << "cell_Y: " <<root_medium->getYPos();
+
+            }
+            break;
+        }
+        case State::turn:
+        {
+            if (got_to_orientation(wantedDegree))
+            {
+                krembot.Base.stop();
+                state = State::move;
+            }else
+            {
+                int ang_speed = (wantedDegree < degreeX.UnsignedNormalize() ? -20 : 20);
+                if((degreeX.UnsignedNormalize() > CDegrees(359.50) && degreeX.UnsignedNormalize() < CDegrees(0.5)) && wantedDegree == CDegrees(90)){
+                    ang_speed = 20;
+                }
+                else if ((degreeX.UnsignedNormalize() > CDegrees(359.50) && degreeX.UnsignedNormalize() < CDegrees(0.5)) && wantedDegree == CDegrees(270)){
+                    ang_speed = -20;
+                }
+                else if (degreeX.UnsignedNormalize() > CDegrees(269.5) && wantedDegree == CDegrees(0)){
+                    ang_speed = 20;
+                }
+                krembot.Base.drive(0, ang_speed);
+            }
+            break;
+        }
+        default:
+        {
+            LOGERR << "WTF?";
+        }
+    }
+
+
 }
 
 
@@ -146,37 +222,45 @@ bool STC_controller::checkLeftDirection(Cell _cell, int **grid) {
 int STC_controller::mapIndex2Dto1D(int xPos, int yPos){
     return ((xPos) * dfs_width + yPos);
 }
-void STC_controller::addAdjCells(Cell &cell, int **grid,int given_height,int given_width, bool isDfsRun) {
-    if (checkUpDirection(cell,grid,given_height))
+void STC_controller::addAdjCells(Cell &cell, int **grid,bool visited[],int given_height,int given_width, bool isDfsRun) {
+    if (checkUpDirection(cell,grid,given_height) && !visited[(cell.getXPos() + 1)*given_width + cell.getYPos()])
     {
         Cell *_cell = new Cell(cell.getXPos() + 1, cell.getYPos());
         cell.addNeighbor(_cell);
+        _cell->addNeighbor(&cell);
         if(isDfsRun) {
             neighbor_matrix[cell.getXPos()][cell.getYPos()].upDir = true;
+            neighbor_matrix[cell.getXPos()+1][cell.getYPos()].downDir = true;
         }
     }
-    if (checkRightDirection(cell,grid,given_width))
+    if (checkRightDirection(cell,grid,given_width) && !visited[(cell.getXPos())*given_width + (cell.getYPos() +1)])
     {
         Cell *_cell = new Cell(cell.getXPos(), cell.getYPos() + 1);
         cell.addNeighbor(_cell);
+        _cell->addNeighbor(&cell);
         if (isDfsRun){
             neighbor_matrix[cell.getXPos()][cell.getYPos()].rightDir = true;
+            neighbor_matrix[cell.getXPos()][cell.getYPos()+1].leftDir = true;
         }
     }
-    if (checkDownDirection(cell,grid))
+    if (checkDownDirection(cell,grid) && !visited[(cell.getXPos() -1)*given_width + cell.getYPos()])
     {
         Cell *_cell = new Cell(cell.getXPos() - 1, cell.getYPos());
         cell.addNeighbor(_cell);
+        _cell->addNeighbor(&cell);
         if (isDfsRun){
             neighbor_matrix[cell.getXPos()][cell.getYPos()].downDir = true;
+            neighbor_matrix[cell.getXPos()-1][cell.getYPos()].upDir = true;
         }
     }
-    if (checkLeftDirection(cell,grid))
+    if (checkLeftDirection(cell,grid) && !visited[(cell.getXPos())*given_width + (cell.getYPos() -1)])
     {
         Cell *_cell = new Cell(cell.getXPos(), cell.getYPos() - 1);
         cell.addNeighbor(_cell);
+        _cell->addNeighbor(&cell);
         if (isDfsRun){
             neighbor_matrix[cell.getXPos()][cell.getYPos()].leftDir = true;
+            neighbor_matrix[cell.getXPos()][cell.getYPos()-1].rightDir = true;
         }
     }
 }
@@ -243,11 +327,14 @@ void STC_controller::pos_to_row_col_stc_grid(const CVector2& pos,int & row, int 
 }
 
 bool STC_controller::got_to_cell(int _col, int _row) {
+    if (_col == 205 && _row == 145){
+        int x = 3;
+    }
     Real threshold = 0.0005;
     CVector2 cell_center_pos;
     cell_center_pos.Set(_col*resolution, _row*resolution);
     cell_center_pos += origin;
-    if ((pos-cell_center_pos).SquareLength() < threshold)
+    if ((pos - cell_center_pos).SquareLength() < threshold)
     {
         return true;
     } else {
@@ -256,12 +343,12 @@ bool STC_controller::got_to_cell(int _col, int _row) {
 }
 
 bool STC_controller::got_to_orientation(CDegrees degree) {
-    if (((degreeX - degree).UnsignedNormalize().GetValue() > 0.50) && ((degreeX-degree).UnsignedNormalize()).GetValue() < 359.58)
+    if (((degreeX - degree).UnsignedNormalize().GetValue() > 0.50) && ((degreeX-degree).UnsignedNormalize().GetValue() < 359.50))
     {
-        return true;
+        return false;
     }
     else {
-        return false;
+        return true;
     }
 }
 
@@ -351,7 +438,7 @@ void STC_controller::DFS(Cell &root,bool visited[]) {
         int index = 0;
         Cell *cell = stack.top();
         stack.pop();
-        addAdjCells(*cell,final_grid,height/ROBOT_SIZE/2, width/ROBOT_SIZE/2,true);
+        addAdjCells(*cell,final_grid,visited,height/ROBOT_SIZE/2, width/ROBOT_SIZE/2,true);
         std::list<Cell*> *adjList = cell->getAdjacencyList();
         for (auto &neighbor : *adjList) {
             index = mapIndex2Dto1D(neighbor->getXPos(), neighbor->getYPos());
@@ -400,10 +487,10 @@ std::list<Cell*> *STC_controller::get_neighbor_direction(Cell *current_cell, std
 }
 
 std::list<Cell *> *STC_controller::get_unvisited_neighbors(Cell *current_cell, std::list<Cell *> *available_neighbors,
-                                                           int **visitedRobotGrid) {
+                                                           bool visitedRobotGrid[]) {
     std::list<Cell*> *list = new std::list<Cell*>;
     for (auto &neighbor : *available_neighbors) {
-        if (!visitedRobotGrid[neighbor->getXPos()][neighbor->getYPos()])
+        if (!visitedRobotGrid[(neighbor->getXPos()* width /ROBOT_SIZE)+ neighbor->getYPos()])
             list->push_back(neighbor);
     }
     return list;
@@ -464,21 +551,25 @@ CVector2 STC_controller::mapResolutionToStc(int xPos, int yPos) {
     return CVector2(xPos/2,yPos/2);
 }
 
-int **STC_controller::initVisitedRobotGrid(int _width, int _height) {
-    int new_width = _width /ROBOT_SIZE;
-    int new_height = _height /ROBOT_SIZE;
-    //Init the new grids by the calculated size
-    int **visitedRobotGrid = new int *[new_width];
-    for (int i = 0; i < new_width; i++) {
-        visitedRobotGrid[i] = new int[new_height];
+void STC_controller::initVisitedRobotGrid(bool visitedRobotGrid[],int _width, int _height) {
+    for (int i =0; i <_width*_height; i++){
+        visitedRobotGrid[i] = false;
     }
-    for (int row = new_height - 1; row >= 0; row--) {
-        for (int col = 0; col < new_width; col++) {
-            visitedRobotGrid[row][col] = 0;
-        }
-    }
-    return visitedRobotGrid;
 }
+
+CDegrees STC_controller::calculateWantedDegree(Cell* current_cell, Cell* next_cell) {
+    Degrees deg;
+    if (current_cell->getXPos() < next_cell->getXPos())
+        return deg.up_degree;
+    if (current_cell->getXPos() > next_cell->getXPos())
+        return deg.down_degree;
+    if (current_cell->getYPos() < next_cell->getYPos())
+        return deg.right_degree;
+    if (current_cell->getYPos() > next_cell->getYPos())
+        return deg.left_degree;
+}
+
+
 
 
 

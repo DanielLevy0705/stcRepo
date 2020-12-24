@@ -1,7 +1,8 @@
 #include <Krembot/controller/krembot_controller.h>
 #include <vector>
 #include <queue>
-
+#include <list>
+#include <math.h>
 struct MapMsg{
     int ** occupancyGrid;
     Real resolution;
@@ -13,6 +14,13 @@ struct MapMsg{
 struct PosMsg{
     CVector2 pos;
     CDegrees degreeX;
+};
+
+struct Degrees {
+    CDegrees up_degree = CDegrees(90);
+    CDegrees left_degree = CDegrees(180);
+    CDegrees down_degree = CDegrees(270);
+    CDegrees right_degree = CDegrees(0);
 };
 
 struct Directions {
@@ -55,7 +63,7 @@ public:
                                                int robot_col, int robot_row);
     void init_matrix_neighbor(int width_size,int height_size);
     std::list<Cell*> *get_neighbor_direction(Cell* current_cell, std::list<Cell*> *available_neighbors);
-    std::list<Cell*>* get_unvisited_neighbors(Cell* current_cell,std::list<Cell*>*available_neighbors ,int **visitedRobotGrid);
+    std::list<Cell*>* get_unvisited_neighbors(Cell* current_cell,std::list<Cell*>*available_neighbors ,bool visitedRobotGrid[]);
     std::list<Cell*>* get_converted_cells(Cell* current_cell, std::list<Cell*>*available_neighbors);
     CVector2 mapResolutionToStc(int xPos, int yPos);
     int mapIndex2Dto1D(int xPos, int yPos);
@@ -63,13 +71,15 @@ public:
     bool checkRightDirection(Cell _cell, int **grid, int given_width);
     bool checkDownDirection(Cell _cell, int **grid);
     bool checkLeftDirection(Cell _cell, int **grid);
-    void addAdjCells(Cell &cell, int **grid,int given_height, int given_width, bool isDfsRun);
+    void addAdjCells(Cell &cell, int **grid,bool visited[],int given_height, int given_width, bool isDfsRun);
     void pos_to_col_row(CVector2 pos, int * pCol, int *pRow);
     void save_dm(std::string name, int width,int height,int resolution);
     int **create_grid(int **grid, int _height, int _width);
     int **create_resolution_grid(int **grid, int _height, int _width);
     void DFS(Cell &root, bool visited[]);
-    int ** initVisitedRobotGrid(int _width, int _height);
+    void initVisitedRobotGrid(bool visitedRobotGrid[],int _width, int _height);
+    std::list<Cell*>* pathBuilder(Cell *root,bool visitedRobotGrid[]);
+    CDegrees calculateWantedDegree(Cell* current_cell, Cell* next_cell);
     void Init(TConfigurationNode &t_node) override {
         KrembotController::Init(t_node);
         if ( ! krembot.isInitialized() ) {
