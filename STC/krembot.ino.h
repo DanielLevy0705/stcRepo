@@ -127,11 +127,20 @@ public:
      */
     void init_matrix_neighbor(int width_size, int height_size);
 
+    /*
+     * Get all the neighbors that are in the cell in the stc grid.
+     */
     std::list<Cell *> *get_neighbor_direction(Cell *current_cell, std::list<Cell *> *available_neighbors);
 
+    /*
+     * Get all the neighbors that weren't visited in the reduced grid.
+     */
     std::list<Cell *> *
     get_unvisited_neighbors(Cell *current_cell, std::list<Cell *> *available_neighbors, bool visitedRobotGrid[]);
 
+    /*
+     * Get all the neighbors that there isn't a vertex in the spanning tree between them.
+     */
     std::list<Cell *> *get_converted_cells(Cell *current_cell, std::list<Cell *> *available_neighbors);
 
     /*

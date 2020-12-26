@@ -119,7 +119,6 @@ void STC_controller::loop() {
                 state = State::turn;
             } else {
                 krembot.Base.drive(100, 0);
-                LOG << std::endl << "cell_X: " << root_medium->getXPos() << "cell_Y: " << root_medium->getYPos();
 
             }
             break;
@@ -129,6 +128,7 @@ void STC_controller::loop() {
                 krembot.Base.stop();
                 state = State::move;
             } else {
+
                 int ang_speed = (wantedDegree < degreeX.UnsignedNormalize() ? -5 : 5);
                 if ((degreeX.UnsignedNormalize() > CDegrees(359.50) && degreeX.UnsignedNormalize() < CDegrees(0.5)) &&
                     wantedDegree == CDegrees(90)) {
