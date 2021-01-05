@@ -2,13 +2,13 @@
 
 
 
-void foraging_controller_2::setup() {
+void foraging_controller_2_controller::setup() {
     krembot.setup();
     writeTeamColor();
-    teamName = "foraging_controller_2";
+    teamName = "foraging_controller_2_controller";
 }
 
-void foraging_controller_2::loop() {
+void foraging_controller_2_controller::loop() {
     krembot.loop();
 
     switch (state) {
