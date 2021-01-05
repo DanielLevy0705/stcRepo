@@ -1,0 +1,1 @@
+/usr/bin/c++ -fPIC -g  -shared  -o libforaging_controller_2.so CMakeFiles/foraging_controller_2.dir/krembot.ino.o  -lKrembot -largos3core_simulator -largos3plugin_simulator_footbot -largos3plugin_simulator_genericrobot 

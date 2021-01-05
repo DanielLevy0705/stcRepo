@@ -1,0 +1,18 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/eliran/krembot_ws/controllers/foraging_controller_2/krembot.ino.cpp
+krembot.ino.h
+/home/eliran/krembot_ws/controllers/foraging_controller_2/krembot.ino.h
+
+/home/eliran/krembot_ws/controllers/foraging_controller_2/krembot.ino.h
+Krembot/controller/krembot_controller.h
+-
+controllers/foraging/krembot.ino.h
+/home/eliran/krembot_ws/controllers/foraging_controller_2/controllers/foraging/krembot.ino.h
+

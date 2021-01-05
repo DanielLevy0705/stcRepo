@@ -1,0 +1,3 @@
+/home/eliran/krembot_ws/controllers/foraging_controller_2/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+/home/eliran/krembot_ws/controllers/foraging_controller_2/cmake-build-debug/CMakeFiles/edit_cache.dir
+/home/eliran/krembot_ws/controllers/foraging_controller_2/cmake-build-debug/CMakeFiles/foraging_controller_2.dir
