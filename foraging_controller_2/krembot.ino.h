@@ -7,7 +7,8 @@ private:
     enum State{
         turn,
         move,
-        stop
+        stop,
+        moveHome
     };
 
     State state = move;
@@ -18,6 +19,15 @@ private:
 public:
     void setup() override;
     void loop() override;
+    /*
+     * This function calculates the degree in which the robot should move towards the nest.
+     */
+    CDegrees calculateDegreeHome();
+    /*
+     * This function is taken from class and checks if we got to the right orientation.
+     */
+    bool got_to_orientation(CDegrees degree);
+
 };
 
 
