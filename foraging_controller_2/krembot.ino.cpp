@@ -13,6 +13,9 @@ void foraging_controller_2_controller::setup() {
     pos = posMsg.pos;
     degreeX = posMsg.degreeX;
     home_position = foragingMsg.homeLocation;
+    std::string oppColor = foragingMsg.opponentColor;
+    opponentColor = convertStringToColor(oppColor);
+    flag = false;
 }
 
 void foraging_controller_2_controller::loop() {
@@ -26,6 +29,16 @@ void foraging_controller_2_controller::loop() {
             Colors colorFrontLeft = krembot.RgbaFrontLeft.readColor();
             Colors colorFrontRight = krembot.RgbaFrontRight.readColor();
             float distance = krembot.RgbaFront.readRGBA().Distance;
+            if (!hasFood && ((colorFront == opponentColor)  ||
+                (colorFrontLeft ==  opponentColor) || (colorFrontRight ==  opponentColor))) {
+                int random = rand() % 10;
+                if (random != 0){
+                    sandTimer.start(100);
+                    krembot.Base.stop();
+                    state = State::block;
+                    break;
+                }
+            }
             if ((distance < 25) || (colorFront != Colors::None)  ||
                  (colorFrontLeft !=  Colors::None) || (colorFrontRight !=  Colors::None)) {
                 sandTimer.start(200);
@@ -74,14 +87,21 @@ void foraging_controller_2_controller::loop() {
             break;
         }
 
+        case State::block:{
+            if (sandTimer.finished()) {
+                state = State::move;
+            }
+            break;
+        }
+
     }
 
 }
 
 CDegrees foraging_controller_2_controller::calculateDegreeHome() {
-    Real y_distance = pos.GetY() - home_position.GetY();
-    Real x_distance = pos.GetX() - home_position.GetX();
-    CDegrees angle = CDegrees(atan2(-y_distance,-x_distance)*180/M_PI);
+    Real y_distance = home_position.GetY() - pos.GetY();
+    Real x_distance = home_position.GetX() - pos.GetX();
+    CDegrees angle = CDegrees(atan2(y_distance,x_distance)*180/M_PI);
     return angle;
 }
 
@@ -92,5 +112,15 @@ bool foraging_controller_2_controller::got_to_orientation(CDegrees degree) {
     } else {
         return true;
     }
+}
+
+Colors foraging_controller_2_controller::convertStringToColor(std::string col) {
+    if (col == "green"){
+        return Green;
+    } else if (col == "blue"){
+        return Blue;
+    }else if (col == "red"){
+        return Red;
+    } else return None;
 }
 

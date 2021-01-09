@@ -8,13 +8,14 @@ private:
         turn,
         move,
         stop,
-        moveHome
+        block
     };
 
     State state = move;
     SandTimer sandTimer;
     int turning_speed = 100;
     int direction = 1;
+    bool flag;
     Colors ourColor, opponentColor;
 public:
     void setup() override;
@@ -27,6 +28,8 @@ public:
      * This function is taken from class and checks if we got to the right orientation.
      */
     bool got_to_orientation(CDegrees degree);
+
+    Colors convertStringToColor(std::string col);
 
 };
 
