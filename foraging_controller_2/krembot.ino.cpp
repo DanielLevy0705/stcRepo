@@ -8,14 +8,14 @@ void foraging_controller_2_controller::setup() {
     krembot.setup();
     writeTeamColor();
     teamName = "foraging_controller_2_controller";
-    LOGERR << foragingMsg.ourColor << std::endl;
+    LOG << foragingMsg.ourColor << std::endl;
     // init variables
     pos = posMsg.pos;
     degreeX = posMsg.degreeX;
     home_position = foragingMsg.homeLocation;
     std::string oppColor = foragingMsg.opponentColor;
     opponentColor = convertStringToColor(oppColor);
-    flag = false;
+    stuck = false;
 }
 
 void foraging_controller_2_controller::loop() {
@@ -41,21 +41,24 @@ void foraging_controller_2_controller::loop() {
             }
             if ((distance < 25) || (colorFront != Colors::None)  ||
                  (colorFrontLeft !=  Colors::None) || (colorFrontRight !=  Colors::None)) {
+                if(hasFood){
+                    stuck = true;
+                }
                 sandTimer.start(200);
                 state = State::turn;
             } else {
+                stuck = false;
                 krembot.Base.drive(100, 0);
             }
             if (hasFood){
                 state = State::turn;
-                LOGERR << "Has food" << std::endl;
             }
             break;
         }
 
         case State::turn: {
             //WE NEED TO CALCULATE THE DEGREE IN WHICH THE ROBOT WILL MOVE TO HOME
-            if (hasFood){
+            if (hasFood && !stuck){
                 CDegrees angle = calculateDegreeHome();
                 if (got_to_orientation(angle)) {
                     krembot.Base.stop();

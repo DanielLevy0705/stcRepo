@@ -10,12 +10,11 @@ private:
         stop,
         block
     };
-
+    bool stuck;
     State state = move;
     SandTimer sandTimer;
     int turning_speed = 100;
     int direction = 1;
-    bool flag;
     Colors ourColor, opponentColor;
 public:
     void setup() override;
