@@ -16,6 +16,7 @@ void foraging_controller_2_controller::setup() {
     std::string oppColor = foragingMsg.opponentColor;
     opponentColor = convertStringToColor(oppColor);
     stuck = false;
+    randomTurn = false;
 }
 
 void foraging_controller_2_controller::loop() {
@@ -29,7 +30,7 @@ void foraging_controller_2_controller::loop() {
             Colors colorFrontLeft = krembot.RgbaFrontLeft.readColor();
             Colors colorFrontRight = krembot.RgbaFrontRight.readColor();
             float distance = krembot.RgbaFront.readRGBA().Distance;
-            if (!hasFood && ((colorFront == opponentColor)  ||
+            if (!stuck && !hasFood && ((colorFront == opponentColor)  ||
                 (colorFrontLeft ==  opponentColor) || (colorFrontRight ==  opponentColor))) {
                 int random = rand() % 10;
                 if (random != 0){
@@ -39,18 +40,30 @@ void foraging_controller_2_controller::loop() {
                     break;
                 }
             }
-            if ((distance < 25) || (colorFront != Colors::None)  ||
-                 (colorFrontLeft !=  Colors::None) || (colorFrontRight !=  Colors::None)) {
+            if ((distance < 20) || (colorFront != Colors::None)) {
                 if(hasFood){
                     stuck = true;
                 }
                 sandTimer.start(200);
                 state = State::turn;
             } else {
-                stuck = false;
+                if(!hasFood){
+                    if(!randomTurn){
+                        sandTimer.start(1700);
+                        randomTurn = true;
+                    }
+                    if(sandTimer.finished()){
+                        sandTimer.start(200);
+                        randomTurn = false;
+                        state = State::turn;
+                    }
+                }
+                if(stuckTimer.finished()){
+                    stuck = false;
+                }
                 krembot.Base.drive(100, 0);
             }
-            if (hasFood){
+            if (hasFood && !stuck){
                 state = State::turn;
             }
             break;
@@ -78,6 +91,7 @@ void foraging_controller_2_controller::loop() {
             } else {
                 // if dont have food, keep looking for it
                 if (sandTimer.finished()) {
+                    stuckTimer.start(300);
                     state = State::move;
                 } else {
                     direction = rand() % 2;

@@ -11,8 +11,10 @@ private:
         block
     };
     bool stuck;
+    bool randomTurn;
     State state = move;
     SandTimer sandTimer;
+    SandTimer stuckTimer;
     int turning_speed = 100;
     int direction = 1;
     Colors ourColor, opponentColor;
